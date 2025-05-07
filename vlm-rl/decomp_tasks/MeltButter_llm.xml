@@ -1,0 +1,11 @@
+<Task name="MeltButter">
+    <Action name="navigate_to_butter" />
+    <Action name="pick_up_butter" />
+    <Action name="navigate_to_bowl" />
+    <Action name="place_butter_in_bowl" />
+    <Action name="pick_up_bowl_with_butter" />
+    <Action name="navigate_to_microwave" />
+    <Action name="open_microwave_door" />
+    <Action name="place_bowl_in_microwave" />
+    <Action name="close_microwave_door" />
+</Task>

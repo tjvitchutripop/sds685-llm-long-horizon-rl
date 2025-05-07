@@ -1,0 +1,84 @@
+def reward(self, action=None):
+    """
+    Reward function for the place_cube_on_table subtask.
+    
+    Components:
+    1. Success reward for placing the cube on the table
+    2. Shaping reward for moving the cube downward toward the table
+    3. Maintaining grasp during navigation
+    """
+    reward = 0
+    reward_dict = {}
+    
+    # Get cube position and gripper position
+    cube_pos = np.array(self.sim.data.body_xpos[self.cube_body_id])
+    gripper = self.robots[0].gripper
+    
+    # Check if cube is still grasped
+    is_grasped = self._check_grasp(gripper, self.cube)
+    
+    # Check if cube is on the target table
+    # Get height of the second table
+    target_table_height = self.model.mujoco_arena.table_offsets[1][2]
+    cube_height = cube_pos[2]
+    
+    # Threshold for considering the cube placed on the table
+    height_threshold = 0.03  # Slightly above table surface
+    
+    # Success: cube is placed on the table and not grasped
+    cube_on_table = cube_height <= (target_table_height + height_threshold) and cube_height >= target_table_height
+    cube_released = not is_grasped
+    
+    # Primary success reward
+    if cube_on_table and cube_released:
+        success_reward = 2.0
+        reward += success_reward
+        reward_dict["success"] = success_reward
+    else:
+        reward_dict["success"] = 0.0
+    
+    # Shaping reward: encourage moving cube downward if it's above the table
+    if is_grasped:
+        # Only apply this shaping reward while still grasping
+        temp_height = 5.0  # Temperature parameter for height transformation
+        height_diff = self.initial_cube_height - cube_height
+        
+        # Normalized between 0 and 1 using tanh
+        height_reward = np.tanh(temp_height * height_diff)
+        
+        # Scale this component to be less than success reward
+        height_reward *= 0.5
+        reward += height_reward
+        reward_dict["height_progress"] = height_reward
+    else:
+        reward_dict["height_progress"] = 0.0
+    
+    # Scale reward if necessary
+    if self.reward_scale is not None:
+        reward *= self.reward_scale / 2.0  # Max reward is 2.0
+    
+    return reward, reward_dict
+
+def _check_success(self):
+    """
+    Check if cube has been successfully placed on the second table.
+    
+    Success is defined as:
+    1. Cube is on or slightly above the second table surface
+    2. Cube is no longer grasped
+    """
+    # Get cube position
+    cube_pos = np.array(self.sim.data.body_xpos[self.cube_body_id])
+    
+    # Get target table height
+    target_table_height = self.model.mujoco_arena.table_offsets[1][2]
+    cube_height = cube_pos[2]
+    
+    # Threshold for considering the cube placed on the table
+    height_threshold = 0.03  # Slightly above table surface
+    
+    # Check if cube is on table and not grasped
+    cube_on_table = cube_height <= (target_table_height + height_threshold) and cube_height >= target_table_height
+    cube_released = not self._check_grasp(self.robots[0].gripper, self.cube)
+    
+    return cube_on_table and cube_released

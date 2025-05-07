@@ -1,0 +1,9 @@
+name: long-horizon-rl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10.16
+  - pip=25.0.1
+  - pip:
+    - -e ./robosuite/

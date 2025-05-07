@@ -1,0 +1,66 @@
+def reward(self, action=None):
+    # Initialize reward components dictionary
+    reward_dict = {}
+    
+    # Get gripper and cube positions
+    cube = self.cube
+    gripper = self.robots[0].gripper
+    
+    # Distance from gripper to cube
+    gripper_to_cube_dist = self._gripper_to_target(gripper, cube, target_type="body", return_distance=True)
+    reward_dict["gripper_to_cube_dist"] = -gripper_to_cube_dist
+    
+    # Check if the cube is grasped
+    is_grasped = self._check_grasp(gripper, cube)
+    reward_dict["grasp_reward"] = 5.0 if is_grasped else 0.0
+    
+    # Check if cube is lifted
+    cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+    cube_height = cube_pos[2]
+    height_threshold = self.initial_cube_height + 0.05  # Lift at least 5cm
+    is_lifted = cube_height > height_threshold
+    
+    # Give lift reward if cube is both grasped and lifted
+    lift_reward = 0.0
+    if is_grasped and is_lifted:
+        lift_height_diff = cube_height - self.initial_cube_height
+        lift_reward = 10.0 + lift_height_diff * 10.0  # Bonus for lifting higher
+    reward_dict["lift_reward"] = lift_reward
+    
+    # Encourage gripper approaching cube with a smoothly decreasing reward
+    approach_temp = 10.0
+    approach_reward = np.exp(-approach_temp * gripper_to_cube_dist)
+    reward_dict["approach_reward"] = approach_reward if not is_grasped else 0.0
+    
+    # Discourage excessive movement if not yet grasping
+    # if not is_grasped and action is not None:
+    #     action_penalty = -0.01 * np.sum(np.square(action))
+    #     reward_dict["action_penalty"] = action_penalty
+    # else:
+    #     reward_dict["action_penalty"] = 0.0
+    
+    # Check for joint limits and penalize
+    # joint_limit_penalty = -2.0 if self.robots[0].check_q_limits() else 0.0
+    # reward_dict["joint_limit_penalty"] = joint_limit_penalty
+    
+    # Calculate total reward
+    reward = sum(reward_dict.values())
+    
+    # Scale reward if specified
+    if self.reward_scale is not None:
+        scalar_value = 20.0  # Estimated maximum possible reward
+        reward *= self.reward_scale / scalar_value
+    
+    return reward, reward_dict
+
+def _check_success(self):
+    # Check if cube is grasped and lifted to a sufficient height
+    gripper = self.robots[0].gripper
+    is_grasped = self._check_grasp(gripper, self.cube)
+    
+    cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+    cube_height = cube_pos[2]
+    height_threshold = self.initial_cube_height + 0.1  # Lifted at least 10cm
+    
+    # Success if cube is both grasped and lifted sufficiently
+    return is_grasped and (cube_height > height_threshold)

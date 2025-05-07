@@ -1,0 +1,76 @@
+def reward(self, action=None):
+    """
+    Reward function for the pick_up_butter subtask.
+    """
+    reward = 0
+    reward_components = {}
+
+    # Check if butter is grasped - primary success condition
+    butter_grasped = self._check_grasp(self.robots[0].gripper, self.butter.contact_geoms)
+    
+    # Get distance from gripper to butter for shaping
+    gripper_to_butter_distance = self._gripper_to_target(
+        self.robots[0].gripper, self.butter, target_type="body", return_distance=True
+    )
+    
+    # Calculate butter height above table
+    butter_pos = self.sim.data.get_body_xpos(self.butter.root_body)
+    table_height = self.sim.data.get_body_xpos("table1")[2] + self.table_full_size[2]/2
+    butter_height_above_table = butter_pos[2] - table_height
+    
+    # Reward components
+    # 1. Main success reward - largest component when butter is grasped AND lifted
+    min_lift_height = 0.05  # Minimum height to consider butter properly lifted
+    if butter_grasped and butter_height_above_table >= min_lift_height:
+        success_reward = 1.0
+        reward += success_reward
+        reward_components["butter_picked_up"] = success_reward
+    elif butter_grasped:
+        # Partial reward for grasping but not lifting enough
+        grasp_reward = 0.5
+        reward += grasp_reward
+        reward_components["butter_grasped"] = grasp_reward
+        
+        # Add lift shaping reward to encourage lifting
+        lift_temp = 15.0
+        lift_reward = 0.3 * np.tanh(lift_temp * butter_height_above_table)
+        reward += lift_reward
+        reward_components["lift_butter"] = lift_reward
+    else:
+        reward_components["butter_picked_up"] = 0.0
+        reward_components["butter_grasped"] = 0.0
+        reward_components["lift_butter"] = 0.0
+
+    # 2. Shaping reward - encourage getting closer to the butter
+    # Use a smooth, bounded transformation that gives higher reward closer to butter
+    reach_temp = 10.0  # Temperature parameter for controlling smoothness
+    reach_reward = 0.3 * (1 - np.tanh(reach_temp * gripper_to_butter_distance))
+    reward += reach_reward
+    reward_components["reach_butter"] = reach_reward
+
+    # Scale reward if reward_scale is set
+    if self.reward_scale is not None:
+        reward *= self.reward_scale / 1.0  # Max reward is 1.0
+
+    return reward, reward_components
+
+def _check_success(self):
+    """
+    Check if butter has been successfully picked up.
+    Success requires both grasping the butter and lifting it to a minimum height.
+    """
+    # Check if butter is grasped
+    butter_grasped = self._check_grasp(self.robots[0].gripper, self.butter.contact_geoms)
+    
+    if butter_grasped:
+        # Check if butter is lifted to a minimum height above the table
+        butter_pos = self.sim.data.get_body_xpos(self.butter.root_body)
+        table_height = self.sim.data.get_body_xpos("table1")[2] + self.table_full_size[2]/2
+        butter_height_above_table = butter_pos[2] - table_height
+        
+        # Minimum height to consider butter properly lifted
+        min_lift_height = 0.05
+        
+        return butter_height_above_table >= min_lift_height
+    
+    return False

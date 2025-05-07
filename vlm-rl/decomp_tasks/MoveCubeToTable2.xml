@@ -1,0 +1,5 @@
+<Task name="MoveCubeToTable2">
+    <Action name="pick_up_cube" run_id="iku2dl5b" />
+    <Action name="navigate_to_second_table" run_id="9t53j51i" />
+    <Action name="place_cube_on_table" run_id="wnambd3g" />
+</Task>

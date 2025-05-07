@@ -1,0 +1,173 @@
+```python
+import numpy as np
+from robosuite.utils import rewards
+from robosuite.utils.mjcf_utils import CustomMaterial
+from robosuite.utils.observables import Observable, sensor
+from robosuite.utils.placement_samplers import UniformRandomSampler
+from robosuite.models.arenas import MultiTableArena
+from robosuite.models.objects import BoxObject
+from robosuite.models.tasks import ManipulationTask
+from robosuite.utils.transform_utils import convert_quat
+from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
+from robosuite.utils import sim_utils as SU
+from robosuite.models.grippers import GripperModel
+from robosuite.models import MujocoModel
+
+
+class MoveCubeToTable2(SingleArmEnv): # Define class stub for type hinting and clarity
+    def __init__(self, reward_scale=None, **kwargs):
+        # Assume other necessary initializations are done in the parent class
+        # Add necessary attributes for the reward function
+        self.reward_scale = reward_scale
+        # Define table offsets needed for reward calculation (example values)
+        # Get these from the actual environment setup. Copied from the prompt context.
+        self.table_offset = [(1, -1.5, 0.8), (1, 1.5, 0.8)]
+        # Mock utility functions for standalone execution if needed for testing
+        # In the actual environment, these would be implemented methods
+        # self.sim = None # Needs to be properly initialized in the real env
+        # self.robots = [MockRobot()] # Needs a mock or real robot object
+
+    # <reward functions and success condition will be inserted here>
+
+    def reward(self, action=None):
+        """
+        Reward function for the navigate_to_second_table subtask.
+
+        Args:
+            action (np.array): Action taken at the current timestep. Not used in this reward.
+
+        Returns:
+            tuple:
+                - float: Total reward scalar.
+                - dict: Dictionary containing reward components.
+        """
+        reward = 0.0
+        reward_components = {}
+
+        # Target position for navigation: center of the second table
+        target_table_pos = self.table_offset[1]
+
+        # --- Navigation Progress Reward ---
+        # Calculate distance from the robot base to the target table position
+        base_dist_to_table2 = self._base_to_pos(target=target_table_pos)
+
+        # Shaping reward to encourage moving closer to the second table
+        # Use exponential decay: reward increases as distance decreases
+        navigate_dist_temperature = 5.0 # Temperature parameter for distance scaling
+        navigate_progress_reward = np.exp(-navigate_dist_temperature * base_dist_to_table2)
+        reward_components["navigate_progress_reward"] = navigate_progress_reward
+        reward += navigate_progress_reward
+
+        # --- Success Reward ---
+        # Bonus reward for being very close to the target table (reaching the goal state)
+        success_threshold = 0.3 # meters
+        success_reward_value = 2.0
+        if base_dist_to_table2 < success_threshold:
+            success_reward = success_reward_value
+            reward_components["success_reward"] = success_reward
+            reward += success_reward
+        else:
+             reward_components["success_reward"] = 0.0
+
+
+        # Define the maximum possible reward for scaling
+        # Max navigate_progress is exp(0) = 1.0. Max success_reward is 2.0.
+        max_possible_reward = 1.0 + success_reward_value
+
+        # Scale reward if reward_scale is set
+        if self.reward_scale is not None:
+            reward *= self.reward_scale / max_possible_reward
+
+        return reward, reward_components
+
+    def _check_success(self):
+        """
+        Check if the navigate_to_second_table subtask is successfully completed.
+        Success is defined as the robot base being sufficiently close to the second table.
+
+        Returns:
+            bool: True if the robot base is within the success threshold distance of the second table.
+        """
+        # Target position for navigation: center of the second table
+        target_table_pos = self.table_offset[1]
+
+        # Calculate distance from the robot base to the target table position
+        base_dist_to_table2 = self._base_to_pos(target=target_table_pos)
+
+        # Define the success threshold distance
+        success_threshold = 0.3 # meters
+
+        # Check if the distance is within the threshold
+        return base_dist_to_table2 < success_threshold
+
+    # Dummy implementations of utility functions referenced above for testing
+    # In the real environment, these would call the actual simulation/robot methods.
+    def _base_to_pos(self, target):
+        # Placeholder implementation - Replace with actual simulation call
+        # Example: return np.linalg.norm(target - self.sim.data.get_site_xpos("mobilebase0_center"))
+        print(f"Warning: Using dummy _base_to_pos. Target: {target}")
+        # Assume base is at origin for dummy testing
+        base_pos = np.array([0,0,0])
+        return np.linalg.norm(np.array(target) - base_pos)
+
+# Example usage (for standalone testing if needed)
+if __name__ == '__main__':
+    # Mock robot and sim setup needed for testing outside the main environment
+    class MockRobot:
+        pass
+        # Define necessary attributes/methods if needed by utility functions
+
+    class MockSim:
+        class MockData:
+            def get_site_xpos(self, site_name):
+                if site_name == "mobilebase0_center":
+                    # Return a dummy position, e.g., moving towards table 2
+                    # Table 2 offset: (1, 1.5, 0.8)
+                    # Let's simulate being close:
+                    return np.array([0.9, 1.4, 0.8])
+                    # Or far:
+                    # return np.array([0.0, 0.0, 0.8])
+                return np.zeros(3)
+        data = MockData()
+
+    # Instantiate the environment class (or a simplified version)
+    # Use reward_scale for testing scaling logic
+    env = MoveCubeToTable2(reward_scale=10.0)
+    # env.sim = MockSim() # Assign mock sim if needed by utility functions
+    # env.robots = [MockRobot()] # Assign mock robot if needed
+
+    # --- Test Reward Function ---
+    # Simulate being close to the target
+    env._base_to_pos = lambda target: np.linalg.norm(np.array(target) - np.array([0.9, 1.4, 0.8])) # Mock close distance
+    total_reward, components = env.reward()
+    print("--- Reward Test (Close) ---")
+    print(f"Target Table Pos: {env.table_offset[1]}")
+    print(f"Total Reward: {total_reward}")
+    print(f"Reward Components: {components}")
+    print(f"Distance to Target: {env._base_to_pos(env.table_offset[1])}")
+
+
+    # Simulate being far from the target
+    env._base_to_pos = lambda target: np.linalg.norm(np.array(target) - np.array([-1.0, -1.0, 0.8])) # Mock far distance
+    total_reward, components = env.reward()
+    print("\n--- Reward Test (Far) ---")
+    print(f"Target Table Pos: {env.table_offset[1]}")
+    print(f"Total Reward: {total_reward}")
+    print(f"Reward Components: {components}")
+    print(f"Distance to Target: {env._base_to_pos(env.table_offset[1])}")
+
+
+    # --- Test Success Condition ---
+    print("\n--- Success Check Test ---")
+    # Simulate being close
+    env._base_to_pos = lambda target: np.linalg.norm(np.array(target) - np.array([0.9, 1.4, 0.8])) # Mock close distance (dist < 0.3)
+    print(f"Distance to Target: {env._base_to_pos(env.table_offset[1])}")
+    is_success = env._check_success()
+    print(f"Is Success (Close): {is_success}") # Should be True
+
+     # Simulate being further away
+    env._base_to_pos = lambda target: np.linalg.norm(np.array(target) - np.array([0.5, 1.0, 0.8])) # Mock further distance (dist > 0.3)
+    print(f"Distance to Target: {env._base_to_pos(env.table_offset[1])}")
+    is_success = env._check_success()
+    print(f"Is Success (Far): {is_success}") # Should be False
+```

@@ -1,0 +1,23 @@
+You are an expert reward engineer trying to write reward functions to solve reinforcement learning tasks as effective as possible. Given the following information you are going to generate a dense reward function and success condition for training a policy to control a mobile manipulation robot to complete a subtask of a composite task. You will need to generate a reward function for training a reinforcement learning policy for this subtask by defining a function 'reward(self, action=None)' in the class. For the reward function, please format it in a way such that it returns the total reward (a scalar) and a reward components dictionary with values of different factors that contributed to the reward.  Your reward function must only use the utility functions provided. You may also consider staging your rewards if there are multiple stages for completing the subtask. You must also check if self.reward_scale is set and, if so, scale the reward based on its value (self.reward_scale provides the max reward the function should return) like this, where scalar_value is the maximum possible reward:
+if self.reward_scale is not None:
+    reward *= self.reward_scale / scalar_value
+For defining the success condtion '_check_success(self)', you also must only use the utility functions we provide. Do not assume or hallucinate that certain functions or class attributes exist beyond what is provided. Output only the Python code for both functions and include no other text! Do not wrap in backticks.
+Some helpful tips for writing the reward function code:
+(1) You may find it helpful to normalize the reward to a fixed range by applying transformations like np.exp to the overall reward or its components.  NumPy is already imported as np so feel free to use any NumPy function.
+(2) If you choose to transform a reward component, then you must also introduce a temperature parameter inside the transformation function; this parameter must be a named variable in the reward function and it must not be an input variable. Each transformed reward component should have its own temperature variable
+(3) Lean on the side of a simpler reward function. Overcomplicating could make it harder for policy optimization.
+(4) Most importantly, the reward code’s input variables must only use the utility functions provided and action. Do not assume or hallucinate that certain functions or class attributes exist beyond what is provided!
+Additional reward engineering guidelines:
+- Keep your reward function SIMPLE - prioritize 2-4 well-designed components over many small ones
+- For each component, explain in a comment why it's necessary and what behavior it encourages
+- Use smooth, bounded transformations (like tanh) instead of unbounded ones (like exp) when possible
+- Structure rewards hierarchically - reaching should be worth less than grasping, which should be worth less than lifting
+- Clearly separate shaping rewards from sparse task completion rewards
+- Avoid penalties that conflict with progress toward the goal
+- Ensure reward components won't create unwanted local optima
+- Consider the following structure:
+  1. A sparse success reward (largest component)
+  2. 1-2 progress/shaping rewards to guide toward success
+  3. Minimal or no penalty terms unless absolutely necessary
+
+Before returning the code, analyze for simplicity - if a component isn't clearly necessary, remove it.

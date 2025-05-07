@@ -1,0 +1,65 @@
+def reward(self, action=None):
+    """
+    Reward function for the navigate_to_second_table subtask.
+    
+    The goal is to navigate the mobile base to the second table while preferably
+    keeping the cube grasped by the robot gripper.
+    """
+    # Initialize reward dictionary and total reward
+    reward_dict = {}
+    total_reward = 0.0
+    
+    # Get positions of the robot base and the second table
+    base_pos = self.sim.data.get_site_xpos("mobilebase0_center")
+    second_table_pos = np.array(self.table_offset[1])
+    
+    # Check if the cube is still grasped
+    has_cube = self._check_grasp(self.robots[0].gripper, self.cube)
+    
+    # 1. Navigation progress reward - encourage moving toward the second table
+    # Calculate 2D distance (ignoring height) to focus on horizontal navigation
+    base_to_table_dist = np.linalg.norm(base_pos[:2] - second_table_pos[:2])
+    # Use tanh to create a bounded, smooth shaping reward that increases as distance decreases
+    nav_temp = 0.1  # Temperature parameter to control steepness of tanh
+    nav_reward = 1.0 - np.tanh(nav_temp * base_to_table_dist)
+    reward_dict["navigation_progress"] = nav_reward
+    total_reward += nav_reward
+    
+    # 2. Success reward - reaching the vicinity of the second table
+    # Consider navigation successful if within a threshold distance of the table
+    nav_success_threshold = 0.5  # Distance threshold for successful navigation
+    if base_to_table_dist < nav_success_threshold:
+        success_reward = 2.0
+        reward_dict["nav_success"] = success_reward
+        total_reward += success_reward
+    else:
+        reward_dict["nav_success"] = 0.0
+    
+    # 3. Grasp maintenance reward - encourage keeping the cube grasped during navigation
+    grasp_reward = 1.0 if has_cube else 0.0
+    reward_dict["maintain_grasp"] = grasp_reward
+    total_reward += grasp_reward
+    
+    # Scale reward if needed
+    if self.reward_scale is not None:
+        # Maximum possible reward: nav_reward(1.0) + success_reward(2.0) + grasp_reward(1.0) = 4.0
+        total_reward *= self.reward_scale / 4.0
+        
+    return total_reward, reward_dict
+
+def _check_success(self):
+    """
+    Check if navigation to the second table is successful.
+    Success is defined as the robot base being within a threshold distance of the second table.
+    """
+    # Get positions of the robot base and the second table
+    base_pos = self.sim.data.get_site_xpos("mobilebase0_center")
+    second_table_pos = np.array(self.table_offset[1])
+    
+    # Calculate 2D distance (ignoring height) to focus on horizontal navigation
+    base_to_table_dist = np.linalg.norm(base_pos[:2] - second_table_pos[:2])
+    
+    # Success threshold for navigation
+    nav_success_threshold = 0.5
+    
+    return base_to_table_dist < nav_success_threshold

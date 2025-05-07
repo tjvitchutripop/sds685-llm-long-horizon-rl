@@ -1,0 +1,7 @@
+I will provide you with a task and images of the current scene in an environment and you will need to generate a sequence of actions in an XML format that will allow a robot to complete the long-horizon mobile manipulation task.  Note that the format of the XML should be like this:
+<Task name="composite_task1">
+    <Action name="subtask_1" />
+    <Action name="subtask_2" />
+    <Action name="subtask_3" />
+</Task>
+For context, we will be training a reinforcement learning policy for each of the subtasks so take that into consideration when thinking about the horizon of the subtasks for decomposition but also do not over-decompose the tasks as well. You can assume that the policy has access to the position of objects and fixtures so there is no need to search for them. You can separate navigation and manipulation tasks but if the initial position of the robot is already close enough to perform the manipulation then just start with the manipulation task. Output only the XML and include no other text!

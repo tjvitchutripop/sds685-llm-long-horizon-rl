@@ -1,0 +1,46 @@
+def reward(self, action=None):
+    """
+    Reward function for the navigate_to_second_table subtask.
+    We want to reward the robot for navigating to the second table.
+    """
+    reward = 0.0
+    reward_dict = {}
+    
+    # Get positions
+    base_pos = self.sim.data.get_site_xpos("mobilebase0_center")
+    target_pos = np.array(self.table_offset[1])  # Position of the second table
+    
+    # Calculate distance from base to the target position
+    distance_to_target = self._base_to_pos(target_pos)
+    
+    # Main reward: distance to target (negative to encourage minimizing distance)
+    # Use a smooth, bounded transformation to normalize the reward
+    distance_temp = 5.0  # Temperature parameter for the distance reward
+    dist_reward = -np.tanh(distance_temp * distance_to_target)
+    reward += dist_reward
+    reward_dict['distance_reward'] = dist_reward
+    
+    # Success reward: give a big bonus when the robot is very close to the target
+    success_reward = 0.0
+    if distance_to_target < 0.5:  # If within 0.5 meters of the target
+        success_reward = 5.0
+        reward += success_reward
+    reward_dict['success_reward'] = success_reward
+    
+    # Scale reward if needed
+    if self.reward_scale is not None:
+        scalar_value = 5.0  # Maximum possible reward (success reward)
+        reward *= self.reward_scale / scalar_value
+        
+    return reward, reward_dict
+
+def _check_success(self):
+    """
+    Check if the robot has successfully navigated to the second table.
+    Success is defined as being within a small threshold of the target.
+    """
+    target_pos = np.array(self.table_offset[1])  # Position of the second table
+    distance_to_target = self._base_to_pos(target_pos)
+    
+    # Success if the robot base is within 0.5 meters of the target
+    return distance_to_target < 0.5

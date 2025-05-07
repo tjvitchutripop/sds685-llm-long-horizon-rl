@@ -1,0 +1,19 @@
+{
+    "type": "GO2D1",
+    "body_parts": {
+        "arms": {
+            "right": {
+                "type": "JOINT_POSITION",
+                "interpolation": "null",
+                "input_type": "absolute",
+                "gripper": {
+                    "type": "GRIP"
+                }
+                }
+        },
+        "base": {
+            "type": "JOINT_VELOCITY",
+            "interpolation": "null"
+        }
+    }
+}
